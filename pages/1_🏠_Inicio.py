@@ -99,26 +99,28 @@ try:
    # ==================================================
     # SEÇÃO 4: ANÁLISE POR DIMENSÃO
     # ==================================================
-    col1, col2 = st.columns([1, 1])
+    st.subheader("📊 Análise de Performance por Dimensão")
     
-    with col1:
-        st.subheader("🗺️ Mapa de Calor: Performance por Dimensão")
-        matrix_data = get_dimension_performance_matrix(df)
-        render_heatmap(matrix_data)
+    # Heatmap em tela cheia
+    st.markdown("#### 🗺️ Mapa de Calor: Performance ao Longo dos Anos")
+    matrix_data = get_dimension_performance_matrix(df)
+    render_heatmap(matrix_data)
     
-    with col2:
-        st.subheader("🎯 Comparação entre Dimensões")
-        # Preparar dados para radar chart
-        df_year = df[df['ano'] == selected_year]
-        radar_data = {}
-        for dim in df_year['dimensoes'].unique():
-            df_dim = df_year[df_year['dimensoes'] == dim]
-            total = df_dim['id'].nunique()
-            verde = (df_dim['status'] == 'Verde').sum()
-            pct = (verde / total * 100) if total > 0 else 0
-            radar_data[dim] = pct
-        
-        render_radar_chart(radar_data)
+    st.markdown("---")
+    
+    # Radar chart em tela cheia
+    st.markdown("#### 🎯 Comparação de Performance entre Dimensões")
+    # Preparar dados para radar chart
+    df_year = df[df['ano'] == selected_year]
+    radar_data = {}
+    for dim in df_year['dimensoes'].unique():
+        df_dim = df_year[df_year['dimensoes'] == dim]
+        total = df_dim['id'].nunique()
+        verde = (df_dim['status'] == 'Verde').sum()
+        pct = (verde / total * 100) if total > 0 else 0
+        radar_data[dim] = pct
+    
+    render_radar_chart(radar_data)
     
     st.markdown("---")
     

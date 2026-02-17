@@ -465,20 +465,45 @@ def render_heatmap(matrix_data: pd.DataFrame):
         y=dimensions,
         colorscale=[
             [0, '#DC2626'],      # Vermelho para baixa performance  
-            [0.5, '#F59E0B'],    # Amarelo para média
-            [1, '#059669']       # Verde para alta performance
+            [0.3, '#F59E0B'],    # Laranja
+            [0.5, '#FCD34D'],    # Amarelo para média
+            [0.7, '#84CC16'],    # Verde claro
+            [1, '#059669']       # Verde escuro para alta performance
         ],
-        text=[[f'{val:.1f}%' for val in row] for row in values],
-        texttemplate='%{text}',
-        textfont={"size": 12},
-        colorbar=dict(title="% Verde")
+        text=[[f'{val:.0f}%' for val in row] for row in values],
+        texttemplate='<b>%{text}</b>',
+        textfont={"size": 14, "color": "white"},
+        colorbar=dict(
+            title="% Verde",
+            titleside="right",
+            tickmode="linear",
+            tick0=0,
+            dtick=20,
+            thickness=15,
+            len=0.7
+        ),
+        hovertemplate='<b>%{y}</b><br>Ano: %{x}<br>Performance: %{text}<extra></extra>'
     ))
     
     fig.update_layout(
-        title='Mapa de Calor: Performance por Dimensão e Ano',
+        title={
+            'text': 'Mapa de Calor: Performance por Dimensão e Ano',
+            'font': {'size': 18, 'color': '#1F2937'}
+        },
         xaxis_title='Ano',
-        yaxis_title='Dimensão',
-        height=300
+        yaxis_title='',
+        height=400,
+        font=dict(size=13),
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        xaxis=dict(
+            tickfont=dict(size=12),
+            title_font=dict(size=14)
+        ),
+        yaxis=dict(
+            tickfont=dict(size=13, color='#374151'),
+            automargin=True
+        )
     )
     
     st.plotly_chart(fig, use_container_width=True)
@@ -539,30 +564,48 @@ def render_radar_chart(dimensions_data: Dict[str, float]):
     categories = list(dimensions_data.keys())
     values = list(dimensions_data.values())
     
+    # Adicionar primeiro valor no final para fechar o polígono
+    values_closed = values + [values[0]]
+    categories_closed = categories + [categories[0]]
+    
     fig = go.Figure()
     
     fig.add_trace(go.Scatterpolar(
-        r=values,
-        theta=categories,
+        r=values_closed,
+        theta=categories_closed,
         fill='toself',
-        fillcolor='rgba(46, 139, 87, 0.2)',
-        line=dict(color='#2E8B57', width=2),
-        marker=dict(size=8, color='#2E8B57')
+        fillcolor='rgba(34, 197, 94, 0.25)',
+        line=dict(color='#16A34A', width=3),
+        marker=dict(size=10, color='#15803D', line=dict(color='white', width=2)),
+        name='Performance',
+        hovertemplate='<b>%{theta}</b><br>Performance: %{r:.1f}%<extra></extra>'
     ))
     
     fig.update_layout(
         polar=dict(
             radialaxis=dict(
                 visible=True,
-                range=[0, 100]
-            )
+                range=[0, 100],
+                ticksuffix='%',
+                tickfont=dict(size=11),
+                gridcolor='#E5E7EB'
+            ),
+            angularaxis=dict(
+                tickfont=dict(size=13, color='#374151')
+            ),
+            bgcolor='#F9FAFB'
         ),
-        title='Comparação entre Dimensões (% Verde)',
-        height=400,
-        showlegend=False
+        title={
+            'text': 'Comparação entre Dimensões (% Verde)',
+            'font': {'size': 18, 'color': '#1F2937'}
+        },
+        height=450,
+        showlegend=False,
+        paper_bgcolor='white'
     )
     
     st.plotly_chart(fig, use_container_width=True)
+
 
 
 def render_insight_box(insights: List[str]):
