@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+*_backup.csv
+
+# Development scripts
+fix_valor_column.py
+verify_normalization.py
+compare_values.py
+
+# Gemini artifacts (não incluir no deploy)
+.gemini/
