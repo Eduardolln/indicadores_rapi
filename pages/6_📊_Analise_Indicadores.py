@@ -44,7 +44,7 @@ try:
     with col2:
         dimension_filter = st.selectbox(
             "Dimensão:",
-            options=['Todas', 'AMBIENTAL', 'URBANA', 'FISCAL']
+            options=['Todas', 'AMBIENTAL', 'URBANO', 'FISCAL']
         )
     
     st.markdown('</div>', unsafe_allow_html=True)

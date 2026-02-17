@@ -31,7 +31,7 @@ try:
     # Renderizar seletor de ano na sidebar
     selected_year = render_year_selector(df)
     
-    df_urb = filter_by_dimension(df, 'URBANA')
+    df_urb = filter_by_dimension(df, 'URBANO')
     
     # Resumo de status
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
@@ -42,7 +42,7 @@ try:
     st.markdown("---")
     
     # Painel de filtros
-    filters = render_filter_panel(df_urb, dimension='URBANA')
+    filters = render_filter_panel(df_urb, dimension='URBANO')
     
     # Aplicar filtros
     df_filtered = apply_filters(df_urb, filters)

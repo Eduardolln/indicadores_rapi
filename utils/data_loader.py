@@ -269,7 +269,7 @@ def filter_by_dimension(df: pd.DataFrame, dimension: str) -> pd.DataFrame:
     
     Args:
         df: DataFrame completo
-        dimension: Nome da dimensão ('AMBIENTAL', 'URBANA', 'FISCAL')
+        dimension: Nome da dimensão ('AMBIENTAL', 'URBANO', 'FISCAL')
         
     Returns:
         DataFrame filtrado

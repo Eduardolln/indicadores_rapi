@@ -151,7 +151,7 @@ try:
     with col2:
         st.markdown('<div class="section-card">', unsafe_allow_html=True)
         st.markdown("### 🏙️ Urbana")
-        df_urb = filter_by_dimension(df, 'URBANA')
+        df_urb = filter_by_dimension(df, 'URBANO')
         render_summary_cards(df_urb, year=selected_year)
         total_urb = df_urb[df_urb['ano'] == selected_year]['id'].nunique()
         st.info(f"**Total:** {total_urb} indicadores")
