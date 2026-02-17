@@ -6,7 +6,8 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from typing import List, Optional
+from typing import List, Optional, Dict
+
 
 
 def render_kpi_card(title: str, value: any, delta: str = None, icon: str = None):
@@ -345,3 +346,239 @@ def render_year_selector(df):
     st.sidebar.markdown(f"*Dados disponíveis: {min(available_years)} - {max(available_years)}*")
     
     return selected_year
+
+
+def render_kpi_with_sparkline(title: str, value: any, sparkline_data: List[float], delta: float = None):
+    """
+    Renderiza um KPI card com mini-gráfico de tendência (sparkline).
+    
+    Args:
+        title: Título do KPI
+        value: Valor principal a exibir
+        sparkline_data: Lista de valores para o mini-gráfico
+        delta: Variação percentual opcional
+    """
+    import plotly.graph_objects as go
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.metric(
+            label=title,
+            value=value,
+            delta=f"{delta:+.1f}%" if delta is not None else None
+        )
+    
+    with col2:
+        # Criar sparkline
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            y=sparkline_data,
+            mode='lines',
+            line=dict(color='#2E8B57', width=2),
+            fill='tozeroy',
+            fillcolor='rgba(46, 139, 87, 0.1)'
+        ))
+        
+        fig.update_layout(
+            height=80,
+            margin=dict(l=0, r=0, t=0, b=0),
+            showlegend=False,
+            xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+            yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+        )
+        
+        st.plotly_chart(fig, use_container_width=True, key=f"sparkline_{title}")
+
+
+def render_evolution_chart(df_evolution: pd.DataFrame):
+    """
+    Gráfico combo de evolução anual com barras e linhas.
+    
+    Args:
+        df_evolution: DataFrame com colunas ano, Verde, Amarelo, Vermelho, pct_verde
+    """
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # Barras empilhadas
+    fig.add_trace(
+        go.Bar(name='Verde', x=df_evolution['ano'], y=df_evolution['Verde'],
+               marker_color='#059669'),
+        secondary_y=False
+    )
+    fig.add_trace(
+        go.Bar(name='Amarelo', x=df_evolution['ano'], y=df_evolution['Amarelo'],
+               marker_color='#F59E0B'),
+        secondary_y=False
+    )
+    fig.add_trace(
+        go.Bar(name='Vermelho', x=df_evolution['ano'], y=df_evolution['Vermelho'],
+               marker_color='#DC2626'),
+        secondary_y=False
+    )
+    
+    # Linha de % verde
+    fig.add_trace(
+        go.Scatter(name='% Verde', x=df_evolution['ano'], y=df_evolution['pct_verde'],
+                   mode='lines+markers', line=dict(color='#1E3A8A', width=3),
+                   marker=dict(size=8)),
+        secondary_y=True
+    )
+    
+    fig.update_layout(
+        title='Evolução dos Indicadores ao Longo dos Anos',
+        barmode='stack',
+        height=400,
+        hovermode='x unified',
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    
+    fig.update_xaxes(title_text="Ano")
+    fig.update_yaxes(title_text="Quantidade de Indicadores", secondary_y=False)
+    fig.update_yaxes(title_text="Percentual Verde (%)", secondary_y=True)
+    
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_heatmap(matrix_data: pd.DataFrame):
+    """
+    Renderiza heatmap de performance (Dimensões x Anos).
+    
+    Args:
+        matrix_data: DataFrame com Dimensão como primeira coluna e anos como demais colunas
+    """
+    import plotly.graph_objects as go
+    
+    # Preparar dados
+    dimensions = matrix_data['Dimensão'].tolist()
+    years = [col for col in matrix_data.columns if col != 'Dimensão']
+    values = matrix_data[years].values
+    
+    fig = go.Figure(data=go.Heatmap(
+        z=values,
+        x=years,
+        y=dimensions,
+        colorscale=[
+            [0, '#DC2626'],      # Vermelho para baixa performance  
+            [0.5, '#F59E0B'],    # Amarelo para média
+            [1, '#059669']       # Verde para alta performance
+        ],
+        text=[[f'{val:.1f}%' for val in row] for row in values],
+        texttemplate='%{text}',
+        textfont={"size": 12},
+        colorbar=dict(title="% Verde")
+    ))
+    
+    fig.update_layout(
+        title='Mapa de Calor: Performance por Dimensão e Ano',
+        xaxis_title='Ano',
+        yaxis_title='Dimensão',
+        height=300
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_top_bottom_cards(top_data: pd.DataFrame, bottom_data: pd.DataFrame):
+    """
+    Renderiza cards de melhores e piores performers.
+    
+    Args:
+        top_data: DataFrame com top indicadores
+        bottom_data: DataFrame com bottom indicadores
+    """
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### 🏆 Top 5 Melhores Indicadores")
+        for idx, row in top_data.iterrows():
+            status_emoji = {'Verde': '🟢', 'Amarelo': '🟡', 'Vermelho': '🔴', 'Cinza': '⚫'}
+            emoji = status_emoji.get(row['status'], '')
+            
+            st.markdown(f"""
+            <div style="padding: 0.8rem; margin: 0.5rem 0; background: linear-gradient(135deg, #D4EDDA 0%, #C3E6CB 100%); 
+                        border-radius: 8px; border-left: 4px solid #28A745;">
+                <strong>{emoji} {row['indicador'][:60]}...</strong><br>
+                <span style="color: #155724; font-size: 0.9rem;">
+                    {row['dimensoes']} | {row['orgao_responsavel'][:30]}
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("### ⚠️ Top 5 Que Necessitam Atenção")
+        for idx, row in bottom_data.iterrows():
+            status_emoji = {'Verde': '🟢', 'Amarelo': '🟡', 'Vermelho': '🔴', 'Cinza': '⚫'}
+            emoji = status_emoji.get(row['status'], '')
+            
+            st.markdown(f"""
+            <div style="padding: 0.8rem; margin: 0.5rem 0; background: linear-gradient(135deg, #F8D7DA 0%, #F5C6CB 100%); 
+                        border-radius: 8px; border-left: 4px solid #DC3545;">
+                <strong>{emoji} {row['indicador'][:60]}...</strong><br>
+                <span style="color: #721C24; font-size: 0.9rem;">
+                    {row['dimensoes']} | {row['orgao_responsavel'][:30]}
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
+
+
+def render_radar_chart(dimensions_data: Dict[str, float]):
+    """
+    Renderiza radar chart para comparação entre dimensões.
+    
+    Args:
+        dimensions_data: Dict com {dimensão: % performance}
+    """
+    import plotly.graph_objects as go
+    
+    categories = list(dimensions_data.keys())
+    values = list(dimensions_data.values())
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatterpolar(
+        r=values,
+        theta=categories,
+        fill='toself',
+        fillcolor='rgba(46, 139, 87, 0.2)',
+        line=dict(color='#2E8B57', width=2),
+        marker=dict(size=8, color='#2E8B57')
+    ))
+    
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 100]
+            )
+        ),
+        title='Comparação entre Dimensões (% Verde)',
+        height=400,
+        showlegend=False
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_insight_box(insights: List[str]):
+    """
+    Renderiza box destacado com insights automáticos.
+    
+    Args:
+        insights: Lista de strings com insights
+    """
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%); 
+                padding: 1.5rem; border-radius: 12px; color: white; margin: 1rem 0;">
+        <h3 style="margin-top: 0; color: white;">💡 Insights Automáticos</h3>
+    """, unsafe_allow_html=True)
+    
+    for insight in insights:
+        st.markdown(f"- {insight}")
+    
+    st.markdown("</div>", unsafe_allow_html=True)

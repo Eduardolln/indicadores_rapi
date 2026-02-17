@@ -324,3 +324,190 @@ def get_available_filters(df: pd.DataFrame, dimension: str = None) -> Dict[str, 
         'temas': sorted(df['tema'].dropna().unique().tolist()),
         'orgaos': sorted(df['orgao_responsavel'].dropna().unique().tolist())
     }
+
+
+def get_yearly_evolution(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calcula evolução de status por ano (2014-2024).
+    
+    Returns:
+        DataFrame com colunas: ano, Verde, Amarelo, Vermelho, Cinza, pct_verde
+    """
+    evolution = []
+    
+    for year in sorted(df['ano'].unique()):
+        df_year = df[df['ano'] == year]
+        status_counts = df_year['status'].value_counts().to_dict()
+        total = df_year['id'].nunique()
+        
+        evolution.append({
+            'ano': year,
+            'Verde': status_counts.get('Verde', 0),
+            'Amarelo': status_counts.get('Amarelo', 0),
+            'Vermelho': status_counts.get('Vermelho', 0),
+            'Cinza': status_counts.get('Cinza', 0),
+            'total': total,
+            'pct_verde': (status_counts.get('Verde', 0) / total * 100) if total > 0 else 0
+        })
+    
+    return pd.DataFrame(evolution)
+
+
+def calculate_year_over_year(df: pd.DataFrame, year: int) -> Dict:
+    """
+    Calcula variação percentual ano a ano.
+    
+    Returns:
+        Dict com métricas de variação
+    """
+    if year <= 2014:
+        return {'variation': 0, 'previous_year': None}
+    
+    current = df[df['ano'] == year]
+    previous = df[df['ano'] == year - 1]
+    
+    current_verde = (current['status'] == 'Verde').sum()
+    previous_verde = (previous['status'] == 'Verde').sum()
+    
+    current_total = current['id'].nunique()
+    previous_total = previous['id'].nunique()
+    
+    current_pct = (current_verde / current_total * 100) if current_total > 0 else 0
+    previous_pct = (previous_verde / previous_total * 100) if previous_total > 0 else 0
+    
+    variation = current_pct - previous_pct
+    
+    return {
+        'variation': variation,
+        'previous_year': year - 1,
+        'current_pct': current_pct,
+        'previous_pct': previous_pct,
+        'current_verde': current_verde,
+        'previous_verde': previous_verde
+    }
+
+
+def get_top_bottom_indicators(df: pd.DataFrame, year: int, n: int = 5) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Retorna os top N melhores e piores indicadores.
+    
+    Args:
+        df: DataFrame completo
+        year: Ano para análise
+        n: Número de indicadores a retornar
+        
+    Returns:
+        Tuple com (top_indicators, bottom_indicators)
+    """
+    df_year = df[df['ano'] == year].copy()
+    
+    # Ranking por status (Verde=3, Amarelo=2, Vermelho=1, Cinza=0)
+    status_rank = {'Verde': 3, 'Amarelo': 2, 'Vermelho': 1, 'Cinza': 0}
+    df_year['rank'] = df_year['status'].map(status_rank)
+    
+    # Top performers (status verde + maior valor)
+    top = df_year.nlargest(n, 'rank')[['indicador', 'valor', 'status', 'orgao_responsavel', 'dimensoes']]
+    
+    # Bottom performers (status vermelho/cinza + menor valor)
+    bottom = df_year.nsmallest(n, 'rank')[['indicador', 'valor', 'status', 'orgao_responsavel', 'dimensoes']]
+    
+    return top, bottom
+
+
+def get_dimension_performance_matrix(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Cria matriz de performance para heatmap (Dimensões x Anos).
+    
+    Returns:
+        DataFrame com índice=dimensões, colunas=anos, valores=% verde
+    """
+    dimensions = df['dimensoes'].unique()
+    years = sorted(df['ano'].unique())
+    
+    matrix = []
+    
+    for dim in dimensions:
+        row = {'Dimensão': dim}
+        df_dim = df[df['dimensoes'] == dim]
+        
+        for year in years:
+            df_year = df_dim[df_dim['ano'] == year]
+            total = df_year['id'].nunique()
+            verde = (df_year['status'] == 'Verde').sum()
+            pct = (verde / total * 100) if total > 0 else 0
+            row[str(year)] = pct
+        
+        matrix.append(row)
+    
+    return pd.DataFrame(matrix)
+
+
+def generate_insights(df: pd.DataFrame, year: int) -> List[str]:
+    """
+    Gera insights automáticos textuais baseados nos dados.
+    
+    Returns:
+        Lista de strings com insights
+    """
+    insights = []
+    
+    df_year = df[df['ano'] == year]
+    total = df_year['id'].nunique()
+    status_counts = df_year['status'].value_counts().to_dict()
+    
+    verde_count = status_counts.get('Verde', 0)
+    pct_verde = (verde_count / total * 100) if total > 0 else 0
+    
+    # Insight de performance geral
+    if pct_verde >= 70:
+        insights.append(f"✅ **Excelente desempenho**: {pct_verde:.1f}% dos indicadores atingiram meta verde em {year}")
+    elif pct_verde >= 50:
+        insights.append(f"🟡 **Bom desempenho**: {pct_verde:.1f}% dos indicadores em verde, mas há espaço para melhoria")
+    else:
+        insights.append(f"🔴 **Atenção necessária**: Apenas {pct_verde:.1f}% dos indicadores em verde em {year}")
+    
+    # Comparação com ano anterior
+    if year > 2014:
+        yoy = calculate_year_over_year(df, year)
+        if yoy['variation'] > 5:
+            insights.append(f"📈 **Tendência positiva**: +{yoy['variation']:.1f}% de melhora vs {year-1}")
+        elif yoy['variation'] < -5:
+            insights.append(f"📉 **Alerta de queda**: -{abs(yoy['variation']):.1f}% de piora vs {year-1}")
+    
+    # Melhor dimensão
+    dim_performance = {}
+    for dim in df_year['dimensoes'].unique():
+        df_dim = df_year[df_year['dimensoes'] == dim]
+        total_dim = df_dim['id'].nunique()
+        verde_dim = (df_dim['status'] == 'Verde').sum()
+        dim_performance[dim] = (verde_dim / total_dim * 100) if total_dim > 0 else 0
+    
+    best_dim = max(dim_performance, key=dim_performance.get)
+    insights.append(f"🏆 **Destaque**: Dimensão {best_dim} lidera com {dim_performance[best_dim]:.1f}% de performance")
+    
+    return insights
+
+
+def get_sparkline_data(df: pd.DataFrame, metric: str = 'pct_verde', last_n_years: int = 5) -> List[float]:
+    """
+    Retorna dados para sparkline (mini-gráfico de tendência).
+    
+    Args:
+        df: DataFrame completo
+        metric: Métrica a calcular ('pct_verde', 'total', etc)
+        last_n_years: Número de anos a incluir
+        
+    Returns:
+        Lista de valores para o sparkline
+    """
+    evolution = get_yearly_evolution(df)
+    recent = evolution.tail(last_n_years)
+    
+    if metric == 'pct_verde':
+        return recent['pct_verde'].tolist()
+    elif metric == 'verde':
+        return recent['Verde'].tolist()
+    elif metric == 'total':
+        return recent['total'].tolist()
+    else:
+        return recent['pct_verde'].tolist()
